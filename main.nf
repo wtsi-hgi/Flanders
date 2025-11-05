@@ -106,6 +106,8 @@ workflow {
 			def gwas_file = params.is_test_profile ? file("${projectDir}/${row.input}", checkIfExists:true) : file("${row.input}", checkIfExists:true)
 			def sdY_string = file(row.sdY).exists() ? file(row.sdY).name : row.sdY
 			def sdY_file = file(row.sdY).exists() ? file(row.sdY) : file('NO_SDY_FILE')
+			def per_gene_p1_file = ((row.per_gene_p1) && file(row.per_gene_p1).exists()) ? file(row.per_gene_p1) : file('NO_PER_GENE_FILE1')
+			def per_gene_p2_file = ((row.per_gene_p2) && file(row.per_gene_p2).exists()) ? file(row.per_gene_p2) : file('NO_PER_GENE_FILE2')
 			tuple(
 				row.bfile,
 				[
@@ -136,13 +138,15 @@ workflow {
 				"hole": row.hole
 				],
 				gwas_file,
-				sdY_file
+				sdY_file,
+				per_gene_p1_file,
+				per_gene_p2_file
 			)
 		}
 		.combine(processed_bfile_datasets, by: 0)
-		.map { bfile_id, study_id, munging_config, gwas_file, sdY_file, bfile_dataset ->
-			tuple(study_id, munging_config, gwas_file, sdY_file, bfile_dataset)
-		}
+		.map { bfile_id, study_id, munging_config, gwas_file, sdY_file, per_gene_p1_file, per_gene_p2_file, bfile_dataset ->
+			tuple(study_id, munging_config, gwas_file, sdY_file, per_gene_p1_file, per_gene_p2_file, bfile_dataset)
+		}		
 
 		RUN_MUNGING(sumstas_input_ch, chain_file)
 		RUN_FINEMAPPING(

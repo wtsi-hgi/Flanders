@@ -9,7 +9,7 @@ process MUNG_AND_LOCUS_BREAKER {
   publishDir "${params.outdir}/results/gwas_and_loci_tables", mode: params.publish_dir_mode, pattern:"${meta_study_id.study_id}_loci.tsv"  
   
   input:
-    tuple val(meta_study_id), val(meta_parameters), path(gwas_input), path(sdY_file), path(bfile_dataset)
+    tuple val(meta_study_id), val(meta_parameters), path(gwas_input), path(sdY_file), path(per_gene_p1_file), path(per_gene_p2_file), path(bfile_dataset)
     path chain_file
 
   output:
@@ -20,6 +20,14 @@ process MUNG_AND_LOCUS_BREAKER {
 
   script:
   def args = task.ext.args ?: ''
+  def perGenePvalueParams = ''
+  if (per_gene_p1_file.exists()) {
+      perGenePvalueParams += " --per_gene_p_thresh1 $per_gene_p1_file"
+  } 
+  if (per_gene_p2_file.exists()) {
+      perGenePvalueParams += " --per_gene_p_thresh2 $per_gene_p2_file"
+  } 
+
     """
     s02_sumstat_munging_and_aligning.R \
         ${args} \
@@ -48,7 +56,8 @@ process MUNG_AND_LOCUS_BREAKER {
         --p_thresh2 ${meta_parameters.p_thresh2} \
         --hole ${meta_parameters.hole} \
         --study_id ${meta_study_id.study_id} \
-        --threads ${task.cpus}
+        --threads ${task.cpus} \
+        # ${perGenePvalueParams}
     """
 
   stub:

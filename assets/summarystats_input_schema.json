@@ -39,6 +39,20 @@
             "enum": ["T", "F", "TRUE", "FALSE", "True", "False"]
           }
         ]
+      },
+      "per_gene_p1": {
+        "type": "string",
+        "format": "file-path",
+        "exists": true,
+        "pattern": "\\.(tsv|csv)$",
+        "errorMessage": "Per-gene p-values-1 file must exist and have a .tsv or .csv extension"
+      },
+      "per_gene_p2": {
+        "type": "string",
+        "format": "file-path",
+        "exists": true,
+        "pattern": "\\.(tsv|csv)$",
+        "errorMessage": "Per-gene p-values-2 file must exist and have a .tsv or .csv extension"
       }
     },
     "required": [
