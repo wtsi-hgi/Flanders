@@ -531,7 +531,9 @@ option_list <- list(
   make_option("--p_thresh2", default=1e-05, help="P-value threshold for loci borders"),  
   make_option("--hole", default=250000, help="Minimum pair-base distance between SNPs in different loci"),
   make_option("--study_id", default=NULL, help="Id of the study"),
-  make_option("--threads", default=1, help="N threads for processing")
+  make_option("--threads", default=1, help="N threads for processing"),
+  make_option("--per_gene_p_thresh1", default=NULL, help="TSV file containing per-gene significant p-value threshold for top hits. The p_thresh1 value is used for genes not present in the file"),
+  make_option("--per_gene_p_thresh2", default=NULL, help="TSV file containing per-gene significant p-value threshold for for loci borders. The p_thresh2 value is used for genes not present in the file")
 );
 opt_parser = OptionParser(option_list=option_list);
 opt = parse_args(opt_parser);
@@ -641,8 +643,10 @@ gc()
 # Locus breaker
 ################
 
-message("Run LOCUS BREAKER")
+message(">>> Run LOCUS BREAKER <<<")
 message("Columns in input data: ", paste(names(dataset_munged), collapse=";"))
+message("Options: ", paste(opt, collapse=";"))
+message("Per-gene files: ", paste(c(opt$per_gene_p_thresh2, opt$per_gene_p_thresh2), collapse=";"))
 
 loci_list <- dataset_munged[, {
   if (sum(.SD$p < opt$p_thresh1) > 0) {

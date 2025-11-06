@@ -57,7 +57,7 @@ process MUNG_AND_LOCUS_BREAKER {
         --hole ${meta_parameters.hole} \
         --study_id ${meta_study_id.study_id} \
         --threads ${task.cpus} \
-        # ${perGenePvalueParams}
+        ${perGenePvalueParams}
     """
 
   stub:
