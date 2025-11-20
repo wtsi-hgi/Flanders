@@ -504,31 +504,27 @@ round_sci <- function(x, non_sci_digits = 17, sci_digits=15) {
   return(formatted_value)
 }
 
-# Adds to the mungles dataset per-genethresholds, if they are available
-# if no file provided, use default value p_thresh
-set_per_gene_threshold <- function(dataset,
-                                   per_gene_p_thresh_file,
-                                   p_thresh,
-                                   eff_col) {
-  message(">>> file", per_gene_p_thresh_file)
+#' Constructing p-value lookup from a tsv file (or returning none if no file are provided
+read_p_lookup <- function(per_gene_p_thresh_file) {
   if (!is.null(per_gene_p_thresh_file)) {
-    message(">>> Setting per-gene p-values threshold to ", eff_col)
+    if (!file.exists(per_gene_p_thresh_file)) {
+      stop("Provided per-gene p-value file not found: ", per_gene_p_thresh_file)
+    }
     p_table <- readr::read_delim(per_gene_p_thresh_file)
-
-    # Join thresholds into the main dataset
-    dataset <- merge(
-      dataset,
-      p_table,
-      by = "phenotype_id",
-      all.x = TRUE
-    )
-    dataset[, (eff_col) := fifelse(is.na(pval_thresh), p_thresh, pval_thresh)]
-    dataset[, pval_thresh := NULL]
+    p_lookup <- setNames(p_table$pval_thresh, p_table$phenotype_id)
   } else {
-    message("Per-gene p-values not provided - using default p_thresh from command-line options for col ", eff_col)
-    dataset[, (eff_col) := p_thresh]
+    p_lookup <- NULL
   }
-  return(dataset)
+  return(p_lookup)
+}
+
+#' Getting p-value from the lookup (if exists) for returning default
+get_or_default_p <- function(p_lookup, phenotype_id, p_default) {
+  if (is.null(p_lookup)) {
+    return(p_default)
+  } else {
+    return(ifelse(!is.na(p_lookup[phenotype_id]), p_lookup[phenotype_id], p_default))
+  }
 }
 
 # Get arguments --------
@@ -675,20 +671,17 @@ gc()
 message(">>> Run LOCUS BREAKER <<<")
 message("Options: ", paste(opt, collapse=";"))
 
-# Adding per-gene p1 and p2 for all genes listed in table files
-dataset_munged <- set_per_gene_threshold(dataset_munged, opt$per_gene_p_thresh1, opt$p_thresh1, "p1_eff")
-dataset_munged <- set_per_gene_threshold(dataset_munged, opt$per_gene_p_thresh2, opt$p_thresh2, "p2_eff")
-print(dataset_munged)
+# Constructing p_value lookups (or filling by NULL if files are not provided
+p1_lookup <- read_p_lookup(opt$per_gene_p_thresh1)
+p2_lookup <- read_p_lookup(opt$per_gene_p_thresh2)
 
 # Make grouped table by phenotype_id
-# For each group run expression:
-# 1. If there is at least one row with p < p_thresh1 - pass this group to LocusBreaker.
 loci_list <- dataset_munged[, {
-  # effective per-phenotype threshold
-  p1_use <- .SD$p1_eff[1]   # all rows have the same p1_eff and p2_eff within the group
-  p2_use <- .SD$p2_eff[1]
-  cat("\n>>> Processing ", phenotype_id, " with thresholds: ", p1_use, " ", p2_use  )
-  if (sum(.SD$p < p1_use) > 0) {
+  # Getting per-phenotype thresholds
+  p1_use <- get_or_default_p(p1_lookup, phenotype_id, opt$p_thresh1)
+  p2_use <- get_or_default_p(p2_lookup, phenotype_id, opt$p_thresh2)
+  message(">>> Munging ", phenotype_id, " with thresholds: ", p1_use, ", ", p2_use  )
+  if (sum(.SD$p < p1_use) > 0) { # If there is at least one row with p < p_thresh1 - pass this group to LocusBreaker.
     locus.breaker(
       .SD,
       p.sig = p1_use,
@@ -700,6 +693,8 @@ loci_list <- dataset_munged[, {
     )
   }
 }, by = phenotype_id]
+
+# Remove added columns
 
 # Slightly enlarge locus by 200kb!
 if(nrow(loci_list) > 0){
