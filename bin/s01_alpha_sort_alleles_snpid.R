@@ -29,9 +29,13 @@ hg19ToHg38_liftover <- function(
   dt_for_ranges <- copy(dataset_munged)
   dt_for_ranges[, start := BP]
   dt_for_ranges <- unique(dt_for_ranges, by = c("snp_original", "CHR", "start", "BP"))
-  
+
+  dt_for_ranges[, chr_ucsc := as.character(CHR)]
+  dt_for_ranges[chr_ucsc == "23", chr_ucsc := "X"]
+  dt_for_ranges[chr_ucsc == "24", chr_ucsc := "Y"]
+
   dataset_ranges <- GRanges(
-    seqnames = paste0("chr", dt_for_ranges$CHR),
+    seqnames = paste0("chr", dt_for_ranges$chr_ucsc),
     ranges = IRanges(start = dt_for_ranges$start, end = dt_for_ranges$BP),
     snp_original = dt_for_ranges$snp_original
   )
@@ -41,10 +45,23 @@ hg19ToHg38_liftover <- function(
   
   dataset_ranges38 <- liftOver(dataset_ranges, ch)
   dataset_ranges38_df <- as.data.table(unlist(dataset_ranges38))
+  # Replace UCSC chr names back to your original numeric style
+  dataset_ranges38_df[seqnames == "chrX", seqnames := "chr23"]
+  dataset_ranges38_df[seqnames == "chrY", seqnames := "chr24"]
+
   setnames(dataset_ranges38_df, "end", "BP")
   dataset_ranges38_df <- dataset_ranges38_df[, .(BP, snp_original)]
-  
-  dataset_lifted <- merge(dataset_munged[, !"BP"], dataset_ranges38_df, by = "snp_original", all = FALSE)
+
+  # Old merge
+  #  dataset_lifted <- merge(dataset_munged[, !"BP"], dataset_ranges38_df, by = "snp_original", all = FALSE)
+
+  # New merge which keeps original file order - CRUCIAL TO MANTAIN ALIGNMENT WITH .BED!!
+  dataset_lifted <- dataset_ranges38_df[
+    dataset_munged[, !"BP"],
+    on = "snp_original",
+    nomatch = 0
+  ]
+
   return(dataset_lifted)
 }
 
