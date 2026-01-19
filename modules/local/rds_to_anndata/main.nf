@@ -15,7 +15,7 @@ process RDS_TO_ANNDATA {
     """
     export RETICULATE_PYTHON=\$(which python)
     
-    ls *.rds > all_rds_input_list.txt
+    printf "%s\n" *.rds > all_rds_input_list.txt
     
     s07_rds2anndata.R \
         ${args} \
